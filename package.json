@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@arction/lcjs": "^4.1.1",
-    "@arction/xydata": "^1.4.0"
+    "@arction/xydata": "^1.4.0",
+    "webgl-obj-loader": "^2.0.8"
   },
   "lightningChart": {
     "eID": "1503"
