@@ -161,7 +161,7 @@ const headSeries = chart3D
     .setBackfaceCullingMode('cull-back')
 
 const loadBinaryFile = async (url) => {
-    const result = await fetch(document.head.baseURI + url)
+    const result = await fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + url)
     const blob = await result.blob()
     const arrayBuffer = await blob.arrayBuffer()
     const originalArray = new Int16Array(arrayBuffer)
@@ -265,7 +265,7 @@ Promise.all([
 })
 
 function fetchFile(url) {
-    return fetch(document.head.baseURI + url).then((response) => {
+    return fetch(new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + url).then((response) => {
         if (!response.ok) {
             throw new Error(`Failed to fetch ${url}`)
         }
