@@ -31,7 +31,9 @@ const sensors = [
     { x: -0.16 * 2, y: 0.4 * 2, z: 0.3 * 2, value: 120, name: 'O2', history: [] },
 ]
 
-const dashboard = lightningChart()
+const dashboard = lightningChart({
+            resourcesBaseUrl: new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + 'resources/',
+        })
     .Dashboard({
         numberOfColumns: 2,
         numberOfRows: sensors.length,
