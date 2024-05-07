@@ -13,10 +13,26 @@ const {
     emptyLine,
     AutoCursorModes,
     emptyFill,
-    synchronizeAxisIntervals,
     LegendBoxBuilders,
     Themes,
 } = lcjs
+
+const exampleContainer = document.getElementById('chart') || document.body
+if (exampleContainer === document.body) {
+    exampleContainer.style.width = '100vw'
+    exampleContainer.style.height = '100vh'
+    exampleContainer.style.margin = '0px'
+}
+exampleContainer.style.display = 'flex'
+exampleContainer.style.flexDirection = 'row'
+const containerTrends = document.createElement('div')
+containerTrends.style.width = '50%'
+containerTrends.style.height = '100%'
+exampleContainer.append(containerTrends)
+const containerModel = document.createElement('div')
+containerModel.style.width = '50%'
+containerModel.style.height = '100%'
+exampleContainer.append(containerModel)
 
 const sensors = [
     { x: 0 * 2, y: 0.52 * 2, z: 0.21 * 2, value: 120, name: 'AF3', history: [] },
@@ -31,15 +47,9 @@ const sensors = [
     { x: -0.16 * 2, y: 0.4 * 2, z: 0.3 * 2, value: 120, name: 'O2', history: [] },
 ]
 
-const dashboard = lightningChart({
+const lc = lightningChart({
             resourcesBaseUrl: new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + 'resources/',
         })
-    .Dashboard({
-        numberOfColumns: 2,
-        numberOfRows: sensors.length,
-        theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined
-    })
-    .setSplitterStyle(emptyLine)
 
 const palette = new PalettedFill({
     lookUpProperty: 'value',
@@ -58,71 +68,58 @@ const palette = new PalettedFill({
     }),
 })
 
-const chart3D = dashboard
-    .createChart3D({
-        columnIndex: 1,
-        rowIndex: 0,
-        columnSpan: 1,
-        rowSpan: sensors.length,
+const chart3D = lc
+    .Chart3D({
+        container: containerModel,
+        theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined,
     })
     .setTitle('')
     .setSeriesBackgroundFillStyle(emptyFill)
     .setSeriesBackgroundStrokeStyle(emptyLine)
 
-const channels = sensors.map((info, i) => {
-    const chart = dashboard
-        .createChartXY({
-            columnIndex: 0,
-            rowIndex: i,
-            columnSpan: 1,
-            rowSpan: 1,
-        })
-        .setAutoCursorMode(AutoCursorModes.disabled)
-        .setPadding(0)
-        .setMouseInteractions(false)
-        .setSeriesBackgroundStrokeStyle(emptyLine)
-        .setTitle(`${info.name}`)
-        .setTitlePosition('series-left-top')
-        .setPadding({ left: 40 })
-    const axisX = chart
-        .getDefaultAxisX()
-        .setScrollStrategy(AxisScrollStrategies.progressive)
-        .setInterval({ start: 0, end: 15000, stopAxisAfter: false })
-        .setTickStrategy(AxisTickStrategies.Time, (ticks) =>
-            ticks
-                .setMajorTickStyle((major) => major.setGridStrokeStyle(emptyLine))
-                .setMinorTickStyle((minor) => minor.setGridStrokeStyle(emptyLine)),
-        )
-        .setStrokeStyle(emptyLine)
+const chart = lc
+    .ChartXY({
+        container: containerTrends,
+        // theme: Themes.darkGold
+    })
+    .setAutoCursorMode(AutoCursorModes.disabled)
+    .setMouseInteractions(false)
+    .setTitle('')
+const axisX = chart
+    .getDefaultAxisX()
+    .setScrollStrategy(AxisScrollStrategies.progressive)
+    .setInterval({ start: 0, end: 15000, stopAxisAfter: false })
+    .setTickStrategy(AxisTickStrategies.Time)
 
+chart.getDefaultAxisY().dispose()
+const channels = sensors.map((info, i) => {
+    const iStack = sensors.length - (i + 1)
     const axisY = chart
-        .getDefaultAxisY()
+        .addAxisY({ iStack })
+        .setTitle(info.name)
+        .setTitleRotation(0)
         .setStrokeStyle(emptyLine)
         .setInterval({ start: -5000, end: 9500, stopAxisAfter: false })
         .setScrollStrategy(AxisScrollStrategies.expansion)
         .setTickStrategy(AxisTickStrategies.Empty)
-
-    if (i !== sensors.length - 1) {
-        axisX.setTickStrategy(AxisTickStrategies.Empty).setScrollStrategy(undefined)
-    }
+        .setMouseInteractions(false)
 
     // Series for displaying new data.
     const series = chart
-        .addLineSeries({
+        .addPointLineAreaSeries({
             automaticColorIndex: i,
-            dataPattern: { pattern: 'ProgressiveX' },
+            dataPattern: 'ProgressiveX',
+            yAxis: axisY,
         })
         .setName(info.name)
-        .setDataCleaning({ minDataPointCount: 1 })
+        .setAreaFillStyle(emptyFill)
+        .setMaxSampleCount(100_000)
 
     return {
-        chart,
-        axisX,
         axisY,
         series,
     }
 })
-synchronizeAxisIntervals(...channels.map((chart) => chart.axisX))
 
 chart3D
     .getDefaultAxes()
