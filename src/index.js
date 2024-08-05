@@ -1,4 +1,4 @@
-const lcjs = require('@arction/lcjs')
+const lcjs = require('@lightningchart/lcjs')
 const objLoader = require('webgl-obj-loader')
 
 const {
@@ -76,20 +76,31 @@ const chart3D = lc
     .setTitle('')
     .setSeriesBackgroundFillStyle(emptyFill)
     .setSeriesBackgroundStrokeStyle(emptyLine)
+    .setCursorMode(undefined)
 
 const chart = lc
     .ChartXY({
         container: containerTrends,
         // theme: Themes.darkGold
     })
-    .setAutoCursorMode(AutoCursorModes.disabled)
-    .setMouseInteractions(false)
     .setTitle('')
+    .setMouseInteractionRectangleFit(false)
+    .setMouseInteractionRectangleZoom(false)
 const axisX = chart
     .getDefaultAxisX()
     .setScrollStrategy(AxisScrollStrategies.progressive)
-    .setInterval({ start: 0, end: 15000, stopAxisAfter: false })
+    .setDefaultInterval((state) => ({
+        end: state.dataMax ?? 0,
+        start: (state.dataMax ?? 0) - 15_000,
+        stopAxisAfter: false,
+    }))
     .setTickStrategy(AxisTickStrategies.Time)
+    .setIntervalRestrictions((state) => ({
+        endMin: state.dataMax,
+        endMax: state.dataMax,
+    }))
+chart.onSeriesBackgroundMouseDoubleClick(() => axisX.fit())
+axisX.onStoppedStateChanged((_, stopped) => stopped && axisX.setStopped(false))
 
 chart.getDefaultAxisY().dispose()
 const channels = sensors.map((info, i) => {
@@ -103,6 +114,7 @@ const channels = sensors.map((info, i) => {
         .setScrollStrategy(AxisScrollStrategies.expansion)
         .setTickStrategy(AxisTickStrategies.Empty)
         .setMouseInteractions(false)
+        .setChartInteractions(false)
 
     // Series for displaying new data.
     const series = chart
@@ -215,7 +227,7 @@ Promise.all([
 
     const dataPointsPerSecond = 1000 // 1000 Hz
     const xStep = 1000 / dataPointsPerSecond
-    const streamData = (timestamp) => {
+    const streamData = () => {
         const tNow = window.performance.now()
         const shouldBeDataPointsCount = Math.floor((dataPointsPerSecond * (tNow - tStart)) / 1000)
         const newDataPointsCount = Math.min(shouldBeDataPointsCount - pushedDataCount, 1000)
