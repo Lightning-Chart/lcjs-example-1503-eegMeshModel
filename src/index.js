@@ -1,5 +1,4 @@
 const lcjs = require('@lightningchart/lcjs')
-const objLoader = require('webgl-obj-loader')
 
 const {
     lightningChart,
@@ -77,6 +76,9 @@ const chart3D = lc
     .setSeriesBackgroundFillStyle(emptyFill)
     .setSeriesBackgroundStrokeStyle(emptyLine)
     .setCursorMode(undefined)
+    .setUserInteractions({
+        restoreDefault: false,
+    })
 
 const chart = lc
     .ChartXY({
@@ -84,8 +86,7 @@ const chart = lc
         // theme: Themes.darkGold
     })
     .setTitle('')
-    .setMouseInteractionRectangleFit(false)
-    .setMouseInteractionRectangleZoom(false)
+
 const axisX = chart
     .getDefaultAxisX()
     .setScrollStrategy(AxisScrollStrategies.progressive)
@@ -99,8 +100,6 @@ const axisX = chart
         endMin: state.dataMax,
         endMax: state.dataMax,
     }))
-chart.onSeriesBackgroundMouseDoubleClick(() => axisX.fit())
-axisX.onStoppedStateChanged((_, stopped) => stopped && axisX.setStopped(false))
 
 chart.getDefaultAxisY().dispose()
 const channels = sensors.map((info, i) => {
@@ -110,11 +109,9 @@ const channels = sensors.map((info, i) => {
         .setTitle(info.name)
         .setTitleRotation(0)
         .setStrokeStyle(emptyLine)
-        .setInterval({ start: -5000, end: 9500, stopAxisAfter: false })
+        .setDefaultInterval({ start: -5000, end: 9500, stopAxisAfter: false })
         .setScrollStrategy(AxisScrollStrategies.expansion)
         .setTickStrategy(AxisTickStrategies.Empty)
-        .setMouseInteractions(false)
-        .setChartInteractions(false)
 
     // Series for displaying new data.
     const series = chart
@@ -136,11 +133,7 @@ const channels = sensors.map((info, i) => {
 chart3D
     .getDefaultAxes()
     .forEach((axis) =>
-        axis
-            .setMouseInteractions(false)
-            .setInterval({ start: -1, end: 1 })
-            .setTickStrategy(AxisTickStrategies.Empty)
-            .setStrokeStyle(emptyLine),
+        axis.setPointerEvents(false).setInterval({ start: -1, end: 1 }).setTickStrategy(AxisTickStrategies.Empty).setStrokeStyle(emptyLine),
     )
 chart3D.setCameraAutomaticFittingEnabled(false).setCameraLocation({ x: 0.5, y: 0.4, z: 1 })
 
@@ -190,12 +183,10 @@ Promise.all([
     fetchFile('examples/assets/1503/head.obj'),
     loadBinaryFile('examples/assets/1503/CutData3.bin'),
 ]).then((results) => {
-    const brain = new objLoader.Mesh(results[0])
-    const head = new objLoader.Mesh(results[1])
     const EEGdata = results[2]
 
-    brainSeries.setModelGeometry({ vertices: brain.vertices, indices: brain.indices, normals: brain.vertexNormals }).setFillStyle(palette)
-    headSeries.setModelGeometry({ vertices: head.vertices, indices: head.indices, normals: head.vertexNormals }).setMouseInteractions(false)
+    brainSeries.setModelFromObj(results[0]).setFillStyle(palette)
+    headSeries.setModelFromObj(results[1]).setPointerEvents(false)
 
     const vertexCoordSensorWeights = []
     brainSeries.setVertexValues((coordsWorld) => {
