@@ -12,8 +12,9 @@ const {
     emptyLine,
     AutoCursorModes,
     emptyFill,
-    LegendBoxBuilders,
+    LegendPosition,
     Themes,
+    DataSetXY,
 } = lcjs
 
 const exampleContainer = document.getElementById('chart') || document.body
@@ -50,26 +51,32 @@ const lc = lightningChart({
             resourcesBaseUrl: new URL(document.head.baseURI).origin + new URL(document.head.baseURI).pathname + 'resources/',
         })
 
+const lut = new LUT({
+    interpolate: true,
+    steps: [
+        { value: -500, color: ColorRGBA(255, 0, 255), label: 'Min' },
+        { value: 0, color: ColorRGBA(0, 0, 255), label: '' },
+        { value: 500, color: ColorRGBA(0, 150, 255), label: '' },
+        { value: 1000, color: ColorRGBA(0, 100, 100), label: '' },
+        { value: 1500, color: ColorRGBA(0, 255, 150), label: '' },
+        { value: 2000, color: ColorRGBA(0, 255, 0), label: '' },
+        { value: 4000, color: ColorRGBA(155, 150, 0), label: '' },
+        { value: 9000, color: ColorRGBA(255, 0, 0), label: 'Max' },
+    ],
+})
+
 const palette = new PalettedFill({
     lookUpProperty: 'value',
-    lut: new LUT({
-        interpolate: true,
-        steps: [
-            { value: -500, color: ColorRGBA(255, 0, 255), label: '' },
-            { value: 0, color: ColorRGBA(0, 0, 255), label: '' },
-            { value: 500, color: ColorRGBA(0, 150, 255), label: '' },
-            { value: 1000, color: ColorRGBA(0, 100, 100), label: '' },
-            { value: 1500, color: ColorRGBA(0, 255, 150), label: '' },
-            { value: 2000, color: ColorRGBA(0, 255, 0), label: '' },
-            { value: 4000, color: ColorRGBA(155, 150, 0), label: '' },
-            { value: 9000, color: ColorRGBA(255, 0, 0), label: '' },
-        ],
-    }),
+    lut,
 })
 
 const chart3D = lc
     .Chart3D({
-        container: containerModel,
+        container: containerModel, 
+        legend: {
+            position: LegendPosition.BottomCenter,
+            addEntriesAutomatically: false 
+        },
         theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined,
     })
     .setTitle('')
@@ -80,8 +87,11 @@ const chart3D = lc
         restoreDefault: false,
     })
 
+chart3D.legend.add(lut, { text: 'Brain', lutLength: 250 })
+
 const chart = lc
     .ChartXY({
+        legend: { visible: false },
         container: containerTrends,
         // theme: Themes.darkGold
     })
@@ -89,7 +99,7 @@ const chart = lc
 
 const axisX = chart
     .getDefaultAxisX()
-    .setScrollStrategy(AxisScrollStrategies.progressive)
+    .setScrollStrategy(AxisScrollStrategies.scrolling)
     .setDefaultInterval((state) => ({
         end: state.dataMax ?? 0,
         start: (state.dataMax ?? 0) - 15_000,
@@ -101,6 +111,12 @@ const axisX = chart
         endMax: state.dataMax,
     }))
 
+const dataSet = new DataSetXY({
+    schema: {
+        x: { pattern: 'progressive' },
+        ...Object.fromEntries(sensors.map((_, i) => [`ch${i}`, { pattern: null }])),
+    },
+}).setMaxSampleCount(100_000)
 chart.getDefaultAxisY().dispose()
 const channels = sensors.map((info, i) => {
     const iStack = sensors.length - (i + 1)
@@ -115,14 +131,12 @@ const channels = sensors.map((info, i) => {
 
     // Series for displaying new data.
     const series = chart
-        .addPointLineAreaSeries({
+        .addLineSeries({
             automaticColorIndex: i,
-            dataPattern: 'ProgressiveX',
             yAxis: axisY,
         })
         .setName(info.name)
-        .setAreaFillStyle(emptyFill)
-        .setMaxSampleCount(100_000)
+        .setDataSet(dataSet, { x: 'x', y: `ch${i}` })
 
     return {
         axisY,
@@ -223,29 +237,28 @@ Promise.all([
         const shouldBeDataPointsCount = Math.floor((dataPointsPerSecond * (tNow - tStart)) / 1000)
         const newDataPointsCount = Math.min(shouldBeDataPointsCount - pushedDataCount, 1000)
         if (newDataPointsCount > 0) {
-            const seriesNewDataPoints = []
-            for (let i = 0; i < sensors.length; i++) {
-                const dataSet = EEGdata[i]
-                const newDataPoints = []
-                for (let iDp = 0; iDp < newDataPointsCount; iDp++) {
-                    const x = (pushedDataCount + iDp) * xStep
+            const newData = { x: [], ...Object.fromEntries(sensors.map((_, i) => [`ch${i}`, []])) }
+            for (let iDp = 0; iDp < newDataPointsCount; iDp++) {
+                const x = (pushedDataCount + iDp) * xStep
+                newData.x.push(x)
+                for (let i = 0; i < sensors.length; i++) {
+                    const dataSet = EEGdata[i]
                     const iData = (pushedDataCount + iDp) % dataSet.length
                     const y = dataSet[iData]
-                    const point = { x, y }
-                    newDataPoints.push(point)
+                    newData[`ch${i}`].push(y)
+                    sensors[i].history.push(y)
                 }
-                seriesNewDataPoints[i] = newDataPoints
-
-                // Calculate average sensor value from last 100 samples ~ 100 ms this is used to smoothen the brain coloring
-                sensors[i].history.push(...newDataPoints.map((p) => p.y))
-                while (sensors[i].history.length > 100) {
-                    sensors[i].history.shift()
-                }
-                const avg = sensors[i].history.reduce((prev, cur) => prev + cur, 0) / sensors[i].history.length
-                sensors[i].value = avg
             }
+            // Calculate average sensor value from last 100 samples ~ 100 ms this is used to smoothen the brain coloring
+            sensors.forEach((sensor) => {
+                while (sensor.history.length > 100) {
+                    sensor.history.shift()
+                }
+                const avg = sensor.history.reduce((prev, cur) => prev + cur, 0) / sensor.history.length
+                sensor.value = avg
+            })
 
-            channels.forEach((channel, iChannel) => channel.series.add(seriesNewDataPoints[iChannel]))
+            dataSet.appendSamples(newData)
             pushedDataCount += newDataPointsCount
 
             sensorSeries.clear().add(sensors)
@@ -262,8 +275,6 @@ Promise.all([
         requestAnimationFrame(streamData)
     }
     streamData()
-
-    const legend = chart3D.addLegendBox(LegendBoxBuilders.HorizontalLegendBox).add(brainSeries)
 })
 
 function fetchFile(url) {
