@@ -59,8 +59,8 @@ Direct developer email support can be purchased through a [Support Plan][4] or b
 © LightningChart Ltd 2009-2026. All rights reserved.
 
 
-[Mesh Model]: https://lightningchart.com/js-charts/api-documentation/v8.2.0/classes/MeshModel3D.html
-[Vertex Values]: https://lightningchart.com/js-charts/api-documentation/v8.2.0/classes/MeshModel3D.html#setVertexValues
-[Line series]: https://lightningchart.com/js-charts/api-documentation/v8.2.0/classes/PointLineAreaSeries.html
-[Dashboard]: https://lightningchart.com/js-charts/api-documentation/v8.2.0/classes/Dashboard.html
+[Mesh Model]: https://lightningchart.com/js-charts/api-documentation/v8.3.0/classes/MeshModel3D.html
+[Vertex Values]: https://lightningchart.com/js-charts/api-documentation/v8.3.0/classes/MeshModel3D.html#setVertexValues
+[Line series]: https://lightningchart.com/js-charts/api-documentation/v8.3.0/classes/PointLineAreaSeries.html
+[Dashboard]: https://lightningchart.com/js-charts/api-documentation/v8.3.0/classes/Dashboard.html
 
