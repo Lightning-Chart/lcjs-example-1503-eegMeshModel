@@ -15,7 +15,7 @@ const {
     emptyFill,
     LegendPosition,
     Themes,
-    DataSetXY,
+    DataSet,
 } = lcjs
 
 const exampleContainer = document.getElementById('chart') || document.body
@@ -73,10 +73,10 @@ const palette = new PalettedFill({
 
 const chart3D = lc
     .Chart3D({
-        container: containerModel, 
+        container: containerModel,
         legend: {
             position: LegendPosition.BottomCenter,
-            addEntriesAutomatically: false 
+            addEntriesAutomatically: false,
         },
         theme: (() => {
     const t = Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined
@@ -120,7 +120,7 @@ const axisX = chart
         endMax: state.dataMax,
     }))
 
-const dataSet = new DataSetXY({
+const dataSet = new DataSet({
     schema: {
         x: { pattern: 'progressive' },
         ...Object.fromEntries(sensors.map((_, i) => [`ch${i}`, { pattern: null }])),
@@ -161,8 +161,8 @@ chart3D
 chart3D.setCameraAutomaticFittingEnabled(false).setCameraLocation({ x: 0.5, y: 0.4, z: 1 })
 
 const sensorSeries = chart3D
-    .addPointSeries({ individualLookupValuesEnabled: true })
-    .add(sensors)
+    .addPointSeries()
+    .appendJSON(sensors, { whitelist: ['x', 'y', 'z', 'value'] })
     .setPointStyle(
         new PointStyle3D.Triangulated({
             fillStyle: palette,
@@ -270,7 +270,7 @@ Promise.all([
             dataSet.appendSamples(newData)
             pushedDataCount += newDataPointsCount
 
-            sensorSeries.clear().add(sensors)
+            sensorSeries.clear().appendJSON(sensors, { whitelist: ['x', 'y', 'z', 'value'] })
             const vertexValues = []
             brainSeries.setVertexValues((vertex) => {
                 for (let i = 0; i < vertex.length; i += 1) {
